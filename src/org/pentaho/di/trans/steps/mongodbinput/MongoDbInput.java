@@ -17,8 +17,12 @@
 
 package org.pentaho.di.trans.steps.mongodbinput;
 
+import java.util.ArrayList;
 import java.util.List;
 
+import com.mongodb.BasicDBObject;
+import org.bson.BSONObject;
+import org.bson.BasicBSONObject;
 import org.pentaho.di.core.Const;
 import org.pentaho.di.core.exception.KettleException;
 import org.pentaho.di.core.row.RowDataUtil;
@@ -38,6 +42,7 @@ import com.mongodb.AggregationOutput;
 import com.mongodb.DBObject;
 import com.mongodb.ServerAddress;
 import com.mongodb.util.JSON;
+import org.pentaho.mongo.wrapper.field.MongoField;
 
 public class MongoDbInput extends BaseStep implements StepInterface {
   private static Class<?> PKG = MongoDbInputMeta.class; // for i18n purposes,
@@ -155,6 +160,14 @@ public class MongoDbInput extends BaseStep implements StepInterface {
       m_serverDetermined = false;
     }
 
+    BasicDBObject predicates = new BasicDBObject(  );
+    for (MongoField field : meta.getMongoFields()) {
+      String paramValue = getTransMeta().getParameterValue( "pred_" + field.m_fieldName );
+      if ( paramValue != null ) {
+        predicates.putAll( (BSONObject) JSON.parse(paramValue ) );
+      }
+    }
+
     String query = environmentSubstitute(meta.getJsonQuery());
     String fields = environmentSubstitute(meta.getFieldsName());
     if (Const.isEmpty(query) && Const.isEmpty(fields)) {
@@ -163,7 +176,7 @@ public class MongoDbInput extends BaseStep implements StepInterface {
             "MongoDbInput.ErrorMessage.EmptyAggregationPipeline")); //$NON-NLS-1$
       }
 
-      data.cursor = data.collection.find();
+      data.cursor = data.collection.find( predicates );
     } else {
 
       if (meta.getQueryIsPipeline()) {
